@@ -26,6 +26,7 @@ import com.earth2me.essentials.User;
 import com.earth2me.essentials.utils.DateUtil;
 import com.earth2me.essentials.utils.DescParseTickFormat;
 
+import com.earth2me.essentials.utils.NumberUtil;
 import com.google.common.primitives.Ints;
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
@@ -154,7 +155,7 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                     if (id >= entries.length) {
                         return "0";
                     }
-                    return format.format(entries[id].getBalance().doubleValue());
+                    return NumberUtil.formatAsPrettyCurrency(BigDecimal.valueOf(entries[id].getBalance().doubleValue()));
                 }
 
                 Integer id = Ints.tryParse(identifier);
