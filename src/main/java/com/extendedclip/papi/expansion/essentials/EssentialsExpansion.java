@@ -25,13 +25,16 @@ import com.earth2me.essentials.Kit;
 import com.earth2me.essentials.User;
 import com.earth2me.essentials.utils.DateUtil;
 import com.earth2me.essentials.utils.DescParseTickFormat;
-
 import com.earth2me.essentials.utils.NumberUtil;
 import com.google.common.primitives.Ints;
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import net.essentialsx.api.v2.services.BalanceTop;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -42,8 +45,12 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.StreamSupport;
 
@@ -54,7 +61,6 @@ public class EssentialsExpansion extends PlaceholderExpansion {
     private String b;
     private String t;
     private String q;
-    private final DecimalFormat format = new DecimalFormat("#,###");
 
     private final DecimalFormat coordsFormat = new DecimalFormat("#.###");
 
@@ -65,7 +71,7 @@ public class EssentialsExpansion extends PlaceholderExpansion {
 
     @Override
     public boolean canRegister() {
-        return Bukkit.getPluginManager().getPlugin("Essentials") != null && Bukkit.getPluginManager().getPlugin("Essentials").isEnabled();
+        return Bukkit.getPluginManager().isPluginEnabled("Essentials");
     }
 
     @Override
@@ -101,22 +107,22 @@ public class EssentialsExpansion extends PlaceholderExpansion {
     }
 
     @Override
-    public String onRequest(OfflinePlayer player, @NotNull String identifier) {
+    public String onRequest(OfflinePlayer offlinePlayer, @NotNull String params) {
         final String papiTrue = PlaceholderAPIPlugin.booleanTrue();
         final String papiFalse = PlaceholderAPIPlugin.booleanFalse();
 
         // Put this before the null check as most of it is not required
-        if (identifier.startsWith("baltop_")) {
+        if (params.startsWith("baltop_")) {
             Map<UUID, BalanceTop.Entry> baltopCache = baltop.getBalanceTopCache();
-            identifier = identifier.substring(7);
+            params = params.substring(7);
 
-            if (identifier.startsWith("balance_")) {
-                identifier = identifier.substring(8);
+            if (params.startsWith("balance_")) {
+                params = params.substring(8);
 
-                if (identifier.startsWith("fixed_")) {
-                    identifier = identifier.substring(6);
+                if (params.startsWith("fixed_")) {
+                    params = params.substring(6);
 
-                    Integer id = Ints.tryParse(identifier);
+                    Integer id = Ints.tryParse(params);
                     if (id == null) {
                         return "Invalid ID";
                     }
@@ -128,10 +134,10 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                     return String.valueOf(entries[id].getBalance().longValue());
                 }
 
-                if (identifier.startsWith("formatted_")) {
-                    identifier = identifier.substring(10);
+                if (params.startsWith("formatted_")) {
+                    params = params.substring(10);
 
-                    Integer id = Ints.tryParse(identifier);
+                    Integer id = Ints.tryParse(params);
                     if (id == null) {
                         return "Invalid ID";
                     }
@@ -143,10 +149,10 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                     return fixMoney(entries[id].getBalance().doubleValue());
                 }
 
-                if (identifier.startsWith("commas_")) {
-                    identifier = identifier.substring(7);
+                if (params.startsWith("commas_")) {
+                    params = params.substring(7);
 
-                    Integer id = Ints.tryParse(identifier);
+                    Integer id = Ints.tryParse(params);
                     if (id == null) {
                         return "Invalid ID";
                     }
@@ -158,7 +164,7 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                     return NumberUtil.formatAsPrettyCurrency(BigDecimal.valueOf(entries[id].getBalance().doubleValue()));
                 }
 
-                Integer id = Ints.tryParse(identifier);
+                Integer id = Ints.tryParse(params);
                 if (id == null) {
                     return "Invalid ID";
                 }
@@ -170,17 +176,17 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                 return String.valueOf(entries[id].getBalance().doubleValue());
             }
 
-            if (identifier.startsWith("player_")) {
-                identifier = identifier.substring(7);
+            if (params.startsWith("player_")) {
+                params = params.substring(7);
 
                 boolean stripped = false;
 
-                if (identifier.startsWith("stripped_")) {
-                    identifier = identifier.substring(9);
+                if (params.startsWith("stripped_")) {
+                    params = params.substring(9);
                     stripped = true;
                 }
 
-                Integer id = Ints.tryParse(identifier);
+                Integer id = Ints.tryParse(params);
                 if (id == null) {
                     return "Invalid ID";
                 }
@@ -202,37 +208,34 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                 }
             }
 
-            if (identifier.equals("rank")) {
+            if (params.equals("rank")) {
                 // Another null check because it is above the normal one
-                if (player == null) return "";
+                if (offlinePlayer == null) return "";
 
-                if (!baltopCache.containsKey(player.getUniqueId())) {
+                if (!baltopCache.containsKey(offlinePlayer.getUniqueId())) {
                     return "";
                 }
 
-                return String.valueOf(new ArrayList<>(baltopCache.keySet()).indexOf(player.getUniqueId()) + 1);
+                return String.valueOf(new ArrayList<>(baltopCache.keySet()).indexOf(offlinePlayer.getUniqueId()) + 1);
             }
 
             return null;
         }
 
-        if (player == null) return "";
+        if (offlinePlayer == null) return "";
+        final User user = essentials.getUser(offlinePlayer.getUniqueId());
 
-        if (identifier.equals("tp_cooldown")) {
+        if (params.equals("tp_cooldown")) {
             final double cooldown = essentials.getSettings().getTeleportCooldown();
-
             final long d1 = System.currentTimeMillis();
-            final long d2 = essentials.getUser(player.getUniqueId()).getLastTeleportTimestamp();
-
+            final long d2 = user.getLastTeleportTimestamp();
             long diff = TimeUnit.MILLISECONDS.toSeconds(d1 - d2);
-
-            if(diff < cooldown) return String.valueOf((int) (cooldown - diff));
-
+            if (diff < cooldown) return String.valueOf((int) (cooldown - diff));
             return "0";
         }
 
-        if (identifier.startsWith("kit_last_use_")) {
-            String kitName = identifier.split("kit_last_use_")[1].toLowerCase();
+        if (params.startsWith("kit_last_use_")) {
+            String kitName = params.split("kit_last_use_")[1].toLowerCase();
             Kit kit;
 
             try {
@@ -241,7 +244,7 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                 return "Invalid kit name";
             }
 
-            long time = essentials.getUser(player.getUniqueId()).getKitTimestamp(kit.getName());
+            long time = user.getKitTimestamp(kit.getName());
 
             if (time == 1 || time <= 0) {
                 return "1";
@@ -249,10 +252,9 @@ public class EssentialsExpansion extends PlaceholderExpansion {
             return PlaceholderAPIPlugin.getDateFormat().format(new Date(time));
         }
 
-        if (identifier.startsWith("kit_is_available_")) {
-            String kitName = identifier.split("kit_is_available_")[1].toLowerCase();
+        if (params.startsWith("kit_is_available_")) {
+            String kitName = params.split("kit_is_available_")[1].toLowerCase();
             Kit kit;
-            User user = essentials.getUser(player.getUniqueId());
             long time;
 
             try {
@@ -270,10 +272,9 @@ public class EssentialsExpansion extends PlaceholderExpansion {
             return time == 0 ? papiTrue : papiFalse;
         }
 
-        if (identifier.startsWith("kit_time_until_available_")) {
-            String kitName = identifier.split("kit_time_until_available_")[1].toLowerCase();
+        if (params.startsWith("kit_time_until_available_")) {
+            String kitName = params.split("kit_time_until_available_")[1].toLowerCase();
             boolean raw = false;
-            User user = essentials.getUser(player.getUniqueId());
             Kit kit;
             long time;
 
@@ -309,21 +310,20 @@ public class EssentialsExpansion extends PlaceholderExpansion {
             }
         }
 
-        if (identifier.startsWith("has_kit_")) {
-            Player oPlayer = player.getPlayer();
-            if (oPlayer == null) return papiFalse;
+        if (params.startsWith("has_kit_")) {
+            Player player = offlinePlayer.getPlayer();
+            if (player == null) return papiFalse;
 
-            String kit = identifier.split("has_kit_")[1];
-            return oPlayer.hasPermission("essentials.kits." + kit) ? papiTrue : papiFalse;
+            String kit = params.split("has_kit_")[1];
+            return player.hasPermission("essentials.kits." + kit) ? papiTrue : papiFalse;
         }
 
-        if (identifier.startsWith("home_")) {
+        if (params.startsWith("home_")) {
             Integer homeNumber;
-            final User user = essentials.getUser(player.getUniqueId());
 
             // Removes all the letters from the identifier to get the home slot.
             // Checks if the number slot is an integer or not.
-            if ((homeNumber = Ints.tryParse(identifier.replaceAll("\\D+", ""))) == null) return null;
+            if ((homeNumber = Ints.tryParse(params.replaceAll("\\D+", ""))) == null) return null;
 
             // Since it is easier for users to type from 1-x I subtract one from the original number to work from 0-x.
             homeNumber -= 1;
@@ -332,28 +332,20 @@ public class EssentialsExpansion extends PlaceholderExpansion {
             if (homeNumber >= user.getHomes().size() || homeNumber < 0) return "";
 
             // checks if the identifier matches the pattern home_%d
-            if (identifier.matches("(\\w+_)(\\d+)")) return user.getHomes().get(homeNumber);
+            if (params.matches("(\\w+_)(\\d+)")) return user.getHomes().get(homeNumber);
 
             //checks if the identifier matches the pattern home_%d_(w/x/y/z)
-            if (identifier.matches("(\\w+_)(\\d+)(_\\w)")) {
+            if (params.matches("(\\w+_)(\\d+)(_\\w)")) {
 
                 try {
                     final Location home = user.getHome(user.getHomes().get(homeNumber));
                     final StringBuilder stringBuilder = new StringBuilder();
 
-                    switch (identifier.charAt(identifier.length() - 1)) {
-                        case 'w':
-                            stringBuilder.append(home.getWorld().getName());
-                            break;
-                        case 'x':
-                            stringBuilder.append(coordsFormat.format(home.getX()));
-                            break;
-                        case 'y':
-                            stringBuilder.append((int) home.getY());
-                            break;
-                        case 'z':
-                            stringBuilder.append(coordsFormat.format(home.getZ()));
-                            break;
+                    switch (params.charAt(params.length() - 1)) {
+                        case 'w' -> stringBuilder.append(Objects.requireNonNull(home.getWorld()).getName());
+                        case 'x' -> stringBuilder.append(coordsFormat.format(home.getX()));
+                        case 'y' -> stringBuilder.append((int) home.getY());
+                        case 'z' -> stringBuilder.append(coordsFormat.format(home.getZ()));
                     }
 
                     return stringBuilder.toString();
@@ -363,20 +355,20 @@ public class EssentialsExpansion extends PlaceholderExpansion {
             }
         }
 
-        if (identifier.startsWith("worth")) {
+        if (params.startsWith("worth")) {
             ItemStack item;
 
-            if (identifier.contains(":")){
-                Material material = Material.getMaterial(identifier.replace("worth:", "").toUpperCase());
+            if (params.contains(":")) {
+                Material material = Material.getMaterial(params.replace("worth:", "").toUpperCase());
 
                 if (material == null) return "";
-                item = new ItemStack(material,1);
+                item = new ItemStack(material, 1);
             } else {
-                Player oPlayer = player.getPlayer();
+                Player oPlayer = offlinePlayer.getPlayer();
                 if (oPlayer == null) return "";
 
-                if (oPlayer.getItemInHand().getType() == Material.AIR) return "";
-                item = oPlayer.getItemInHand();
+                if (oPlayer.getInventory().getItemInMainHand().getType() == Material.AIR) return "";
+                item = oPlayer.getInventory().getItemInMainHand();
             }
 
             BigDecimal worth = essentials.getWorth().getPrice(essentials, item);
@@ -384,69 +376,43 @@ public class EssentialsExpansion extends PlaceholderExpansion {
             return String.valueOf(worth.doubleValue());
         }
 
-        final User user = essentials.getUser(player.getUniqueId());
-
-        switch (identifier) {
-            case "is_clearinventory_confirm":
-                return user.isPromptingClearConfirm() ? papiTrue : papiFalse;
-            case "is_pay_confirm":
-                return user.isPromptingPayConfirm() ? papiTrue : papiFalse;
-            case "is_pay_enabled":
-                return user.isAcceptingPay() ? papiTrue : papiFalse;
-            case "is_teleport_enabled":
-                return user.isTeleportEnabled() ? papiTrue : papiFalse;
-            case "is_muted":
-                return user.isMuted() ? papiTrue : papiFalse;
-            case "vanished":
-                return user.isVanished() ? papiTrue : papiFalse;
-            case "afk":
-                return user.isAfk() ? papiTrue : papiFalse;
-            case "afk_reason":
-                if (user.getAfkMessage() == null) return "";
-                return ChatColor.translateAlternateColorCodes('&', user.getAfkMessage());
-            case "afk_player_count":
-                return String.valueOf(essentials.getUserMap().getAllUniqueUsers().stream()
-                        .map(UUID -> essentials.getUser(UUID)).filter(User::isAfk)
-                        .count());
-            case "msg_ignore":
-                return user.isIgnoreMsg() ? papiTrue : papiFalse;
-            case "fly":
-                return user.getBase().getAllowFlight() ? papiTrue : papiFalse;
-            case "nickname":
-                return user.getNickname() != null ? essentials.getUser(player.getUniqueId()).getNickname() : player.getName();
-            case "nickname_stripped":
-                return ChatColor.stripColor(user.getNickname() != null ? essentials.getUser(player.getUniqueId()).getNickname() : player.getName());
-            case "muted_time_remaining":
-                return user.isMuted() ? DateUtil.formatDateDiff(user.getMuteTimeout()) : "";
-            case "geolocation":
-                return user.getGeoLocation() != null ? user.getGeoLocation() : "";
-            case "godmode":
-                return user.isGodModeEnabled() ? papiTrue : papiFalse;
-            case "unique":
-                return NumberFormat.getInstance().format(essentials.getUserMap().getUniqueUsers());
-            case "homes_set":
-                return user.getHomes().isEmpty() ? "0" : String.valueOf(user.getHomes().size());
-            case "homes_max":
-                return String.valueOf(essentials.getSettings().getHomeLimit(user));
-            case "jailed":
-                return user.isJailed() ? papiTrue : papiFalse;
-            case "jailed_time_remaining":
-                return user.isJailed() ? user.getFormattedJailTime() : "";
-            case "pm_recipient":
-                return user.getReplyRecipient() != null ? user.getReplyRecipient().getName() : "";
-            case "safe_online":
-                return String.valueOf(StreamSupport.stream(essentials.getOnlineUsers().spliterator(), false)
-                        .filter(user1 -> !user1.isHidden())
-                        .count());
-            case "world_date":
-                return DateFormat.getDateInstance(DateFormat.MEDIUM, essentials.getI18n().getCurrentLocale())
-                        .format(DescParseTickFormat.ticksToDate(user.getWorld() == null ? 0 : user.getWorld().getFullTime()));
-            case "world_time":
-                return DescParseTickFormat.format12(user.getWorld() == null ? 0 : user.getWorld().getTime());
-            case "world_time_24":
-                return DescParseTickFormat.format24(user.getWorld() == null ? 0 : user.getWorld().getTime());
-        }
-        return null;
+        return switch (params) {
+            case "is_clearinventory_confirm" -> user.isPromptingClearConfirm() ? papiTrue : papiFalse;
+            case "is_pay_confirm" -> user.isPromptingPayConfirm() ? papiTrue : papiFalse;
+            case "is_pay_enabled" -> user.isAcceptingPay() ? papiTrue : papiFalse;
+            case "is_teleport_enabled" -> user.isTeleportEnabled() ? papiTrue : papiFalse;
+            case "is_muted" -> user.isMuted() ? papiTrue : papiFalse;
+            case "vanished" -> user.isVanished() ? papiTrue : papiFalse;
+            case "afk" -> user.isAfk() ? papiTrue : papiFalse;
+            case "afk_reason" -> user.getAfkMessage() == null ? "" : ChatColor.translateAlternateColorCodes('&', user.getAfkMessage());
+            case "afk_player_count" -> String.valueOf(essentials.getUsers().getAllUserUUIDs().stream()
+                    .map(UUID -> essentials.getUser(UUID))
+                    .filter(User::isAfk)
+                    .count());
+            case "msg_ignore" -> user.isIgnoreMsg() ? papiTrue : papiFalse;
+            case "fly" -> user.getBase().getAllowFlight() ? papiTrue : papiFalse;
+            case "nickname" -> user.getNickname() != null ? user.getNickname() : offlinePlayer.getName();
+            case "nickname_stripped" -> ChatColor.stripColor(user.getNickname() != null ? user.getNickname() : offlinePlayer.getName());
+            case "muted_time_remaining" -> user.isMuted() ? DateUtil.formatDateDiff(user.getMuteTimeout()) : "";
+            case "geolocation" -> user.getGeoLocation() != null ? user.getGeoLocation() : "";
+            case "godmode" -> user.isGodModeEnabled() ? papiTrue : papiFalse;
+            case "unique" -> NumberFormat.getInstance().format(essentials.getUsers().getUserCount());
+            case "homes_set" -> user.getHomes().isEmpty() ? "0" : String.valueOf(user.getHomes().size());
+            case "homes_max" -> String.valueOf(essentials.getSettings().getHomeLimit(user));
+            case "jailed" -> user.isJailed() ? papiTrue : papiFalse;
+            case "jailed_time_remaining" -> user.isJailed() ? user.getFormattedJailTime() : "";
+            case "pm_recipient" -> user.getReplyRecipient() != null ? user.getReplyRecipient().getName() : "";
+            case "safe_online" -> String.valueOf(StreamSupport.stream(essentials.getOnlineUsers().spliterator(), false)
+                    .filter(user1 -> !user1.isHidden())
+                    .count());
+            case "world_date" -> DateFormat.getDateInstance(DateFormat.MEDIUM, essentials.getI18n().getCurrentLocale())
+                    .format(DescParseTickFormat.ticksToDate(user.getWorld() == null ? 0 : user.getWorld().getFullTime()));
+            case "world_time" -> DescParseTickFormat.format12(user.getWorld() == null ? 0 : user.getWorld().getTime());
+            case "world_time_24" -> DescParseTickFormat.format24(user.getWorld() == null ? 0 : user.getWorld().getTime());
+            case "balance" -> String.valueOf(user.getMoney().doubleValue());
+            case "balance_formatted" -> NumberUtil.formatAsPrettyCurrency(BigDecimal.valueOf(user.getMoney().doubleValue()));
+            default -> null;
+        };
     }
 
     private String format(double d) {
