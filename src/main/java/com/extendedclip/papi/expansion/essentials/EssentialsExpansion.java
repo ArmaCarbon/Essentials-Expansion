@@ -107,13 +107,13 @@ public class EssentialsExpansion extends PlaceholderExpansion {
     }
 
     @Override
-    public String onRequest(OfflinePlayer offlinePlayer, @NotNull String params) {
+    public String onRequest(final OfflinePlayer offlinePlayer, @NotNull String params) {
         final String papiTrue = PlaceholderAPIPlugin.booleanTrue();
         final String papiFalse = PlaceholderAPIPlugin.booleanFalse();
 
         // Put this before the null check as most of it is not required
         if (params.startsWith("baltop_")) {
-            Map<UUID, BalanceTop.Entry> baltopCache = baltop.getBalanceTopCache();
+            final Map<UUID, BalanceTop.Entry> baltopCache = baltop.getBalanceTopCache();
             params = params.substring(7);
 
             if (params.startsWith("balance_")) {
@@ -122,12 +122,12 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                 if (params.startsWith("fixed_")) {
                     params = params.substring(6);
 
-                    Integer id = Ints.tryParse(params);
+                    final Integer id = Ints.tryParse(params);
                     if (id == null) {
                         return "Invalid ID";
                     }
 
-                    BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
+                    final BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
                     if (id >= entries.length) {
                         return "0";
                     }
@@ -137,12 +137,12 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                 if (params.startsWith("formatted_")) {
                     params = params.substring(10);
 
-                    Integer id = Ints.tryParse(params);
+                    final Integer id = Ints.tryParse(params);
                     if (id == null) {
                         return "Invalid ID";
                     }
 
-                    BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
+                    final BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
                     if (id >= entries.length) {
                         return "0";
                     }
@@ -152,24 +152,24 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                 if (params.startsWith("commas_")) {
                     params = params.substring(7);
 
-                    Integer id = Ints.tryParse(params);
+                    final Integer id = Ints.tryParse(params);
                     if (id == null) {
                         return "Invalid ID";
                     }
 
-                    BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
+                    final BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
                     if (id >= entries.length) {
                         return "0";
                     }
-                    return NumberUtil.formatAsPrettyCurrency(BigDecimal.valueOf(entries[id].getBalance().doubleValue()));
+                    return NumberUtil.formatAsPrettyCurrency(entries[id].getBalance());
                 }
 
-                Integer id = Ints.tryParse(params);
+                final Integer id = Ints.tryParse(params);
                 if (id == null) {
                     return "Invalid ID";
                 }
 
-                BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
+                final BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
                 if (id >= entries.length) {
                     return "0";
                 }
@@ -186,18 +186,18 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                     stripped = true;
                 }
 
-                Integer id = Ints.tryParse(params);
+                final Integer id = Ints.tryParse(params);
                 if (id == null) {
                     return "Invalid ID";
                 }
 
-                BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
+                final BalanceTop.Entry[] entries = baltopCache.values().toArray(new BalanceTop.Entry[0]);
                 if (id >= entries.length) {
                     return "0";
                 }
 
                 if (stripped) {
-                    User user = essentials.getUser(entries[id].getUuid());
+                    final User user = essentials.getUser(entries[id].getUuid());
                     if (user != null) {
                         return user.getName();
                     } else {
@@ -229,22 +229,22 @@ public class EssentialsExpansion extends PlaceholderExpansion {
             final double cooldown = essentials.getSettings().getTeleportCooldown();
             final long d1 = System.currentTimeMillis();
             final long d2 = user.getLastTeleportTimestamp();
-            long diff = TimeUnit.MILLISECONDS.toSeconds(d1 - d2);
+            final long diff = TimeUnit.MILLISECONDS.toSeconds(d1 - d2);
             if (diff < cooldown) return String.valueOf((int) (cooldown - diff));
             return "0";
         }
 
         if (params.startsWith("kit_last_use_")) {
-            String kitName = params.split("kit_last_use_")[1].toLowerCase();
-            Kit kit;
+            final String kitName = params.split("kit_last_use_")[1].toLowerCase();
+            final Kit kit;
 
             try {
                 kit = new Kit(kitName, essentials);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 return "Invalid kit name";
             }
 
-            long time = user.getKitTimestamp(kit.getName());
+            final long time = user.getKitTimestamp(kit.getName());
 
             if (time == 1 || time <= 0) {
                 return "1";
@@ -253,19 +253,19 @@ public class EssentialsExpansion extends PlaceholderExpansion {
         }
 
         if (params.startsWith("kit_is_available_")) {
-            String kitName = params.split("kit_is_available_")[1].toLowerCase();
-            Kit kit;
-            long time;
+            final String kitName = params.split("kit_is_available_")[1].toLowerCase();
+            final Kit kit;
+            final long time;
 
             try {
                 kit = new Kit(kitName, essentials);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 return "Invalid kit name";
             }
 
             try {
                 time = kit.getNextUse(user);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 return papiFalse;
             }
 
@@ -275,8 +275,8 @@ public class EssentialsExpansion extends PlaceholderExpansion {
         if (params.startsWith("kit_time_until_available_")) {
             String kitName = params.split("kit_time_until_available_")[1].toLowerCase();
             boolean raw = false;
-            Kit kit;
-            long time;
+            final Kit kit;
+            final long time;
 
             if (kitName.startsWith("raw_")) {
                 raw = true;
@@ -289,13 +289,13 @@ public class EssentialsExpansion extends PlaceholderExpansion {
 
             try {
                 kit = new Kit(kitName, essentials);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 return "Invalid kit name";
             }
 
             try {
                 time = kit.getNextUse(user);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 return "-1";
             }
 
@@ -311,10 +311,10 @@ public class EssentialsExpansion extends PlaceholderExpansion {
         }
 
         if (params.startsWith("has_kit_")) {
-            Player player = offlinePlayer.getPlayer();
+            final Player player = offlinePlayer.getPlayer();
             if (player == null) return papiFalse;
 
-            String kit = params.split("has_kit_")[1];
+            final String kit = params.split("has_kit_")[1];
             return player.hasPermission("essentials.kits." + kit) ? papiTrue : papiFalse;
         }
 
@@ -349,29 +349,29 @@ public class EssentialsExpansion extends PlaceholderExpansion {
                     }
 
                     return stringBuilder.toString();
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     return null;
                 }
             }
         }
 
         if (params.startsWith("worth")) {
-            ItemStack item;
+            final ItemStack item;
 
             if (params.contains(":")) {
-                Material material = Material.getMaterial(params.replace("worth:", "").toUpperCase());
+                final Material material = Material.getMaterial(params.replace("worth:", "").toUpperCase());
 
                 if (material == null) return "";
                 item = new ItemStack(material, 1);
             } else {
-                Player oPlayer = offlinePlayer.getPlayer();
+                final Player oPlayer = offlinePlayer.getPlayer();
                 if (oPlayer == null) return "";
 
                 if (oPlayer.getInventory().getItemInMainHand().getType() == Material.AIR) return "";
                 item = oPlayer.getInventory().getItemInMainHand();
             }
 
-            BigDecimal worth = essentials.getWorth().getPrice(essentials, item);
+            final BigDecimal worth = essentials.getWorth().getPrice(essentials, item);
             if (worth == null) return "";
             return String.valueOf(worth.doubleValue());
         }
@@ -410,19 +410,19 @@ public class EssentialsExpansion extends PlaceholderExpansion {
             case "world_time" -> DescParseTickFormat.format12(user.getWorld() == null ? 0 : user.getWorld().getTime());
             case "world_time_24" -> DescParseTickFormat.format24(user.getWorld() == null ? 0 : user.getWorld().getTime());
             case "balance" -> String.valueOf(user.getMoney().doubleValue());
-            case "balance_formatted" -> NumberUtil.formatAsPrettyCurrency(BigDecimal.valueOf(user.getMoney().doubleValue()));
+            case "balance_formatted" -> NumberUtil.formatAsPrettyCurrency(user.getMoney());
             default -> null;
         };
     }
 
-    private String format(double d) {
-        NumberFormat format = NumberFormat.getInstance(Locale.ENGLISH);
+    private String format(final double d) {
+        final NumberFormat format = NumberFormat.getInstance(Locale.ENGLISH);
         format.setMaximumFractionDigits(2);
         format.setMinimumFractionDigits(0);
         return format.format(d);
     }
 
-    private String fixMoney(double d) {
+    private String fixMoney(final double d) {
 
         if (d < 1000L) {
             return format(d);
